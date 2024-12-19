@@ -56,6 +56,15 @@ from transformers.integrations import TensorBoardCallback
 
 TENSORBOARD_LOG_DIR_NAME: str = "tensorboard_logs"
 
+# import debugpy
+# try:
+#     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+#     debugpy.listen(("localhost", 9501))
+#     print("Waiting for debugger attach")
+#     debugpy.wait_for_client()
+# except Exception as e:
+#     pass
+
 
 @dataclass
 class ModelArguments:
@@ -833,25 +842,25 @@ def train() -> None:
 
     # pyre-fixme[16]: `DataClass` has no attribute `vision_tower`.
     if model_args.vision_tower_aux_list is not None:
-        if "cambrian" in model_args.input_model_filename.lower():
-            if "qwen" in model_args.input_model_filename.lower():
-                model = CambrianQwenForCausalLM.from_pretrained(  # pyre-fixme
-                    model_args.input_model_filename,  # pyre-fixme
-                    torch_dtype=(torch.bfloat16 if training_args.bf16 else None),  # pyre-fixme
-                    **bnb_model_from_pretrained_args,
-                )
-            else:
-                # pyre-fixme[16]: `CambrianLlamaForCausalLM` has no attribute
-                #  `from_pretrained`.
-                model = CambrianLlamaForCausalLM.from_pretrained(
-                    # pyre-fixme[16]: `DataClass` has no attribute `input_model_local_path`.
-                    model_args.input_model_filename,
-                    **bnb_model_from_pretrained_args,
-                )
-        else:
-            raise NotImplementedError(
-                f"{model_args.model_name_or_path} is not supported yet"
+        # if "cambrian" in model_args.input_model_filename.lower():
+        if "qwen" in model_args.input_model_filename.lower():
+            model = CambrianQwenForCausalLM.from_pretrained(  # pyre-fixme
+                model_args.input_model_filename,  # pyre-fixme
+                torch_dtype=(torch.bfloat16 if training_args.bf16 else None),  # pyre-fixme
+                **bnb_model_from_pretrained_args,
             )
+        else:
+            # pyre-fixme[16]: `CambrianLlamaForCausalLM` has no attribute
+            #  `from_pretrained`.
+            model = CambrianLlamaForCausalLM.from_pretrained(
+                # pyre-fixme[16]: `DataClass` has no attribute `input_model_local_path`.
+                model_args.input_model_filename,
+                **bnb_model_from_pretrained_args,
+            )
+        # else:
+        #     raise NotImplementedError(
+        #         f"{model_args.model_name_or_path} is not supported yet"
+        #     )
     else:
         model = transformers.LlamaForCausalLM.from_pretrained(
             model_args.input_model_filename,
@@ -1055,7 +1064,7 @@ def train() -> None:
     trainable_params = sum(
         p.numel() for p in model.get_model().parameters() if p.requires_grad
     )
-
+    print(f"Total Parameters: {total_params} | Trainable Parameters: {trainable_params}")
     model.to(torch.bfloat16)
 
     # pyre-fixme
@@ -1073,31 +1082,31 @@ def train() -> None:
     training_args.fsdp_config["use_orig_params"] = True
     data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
 
-    callbacks = []
-    # configure TensorboardCallback to upload to manifold
-    callbacks.append(
-        TensorBoardCallback(
-            SummaryWriter(
-                log_dir=os.path.join(
-                    # pyre-fixme[16]: `DataClass` has no attribute
-                    #  `output_model_filename`.
-                    model_args.output_model_filename,
-                    TENSORBOARD_LOG_DIR_NAME,
-                ),
-                comment="",
-                purge_step=None,
-                max_queue=10,
-                flush_secs=120,
-                filename_suffix=str(uuid.uuid4()),
-            )
-        )
-    )
+    # callbacks = []
+    # # configure TensorboardCallback to upload to manifold
+    # callbacks.append(
+    #     TensorBoardCallback(
+    #         SummaryWriter(
+    #             log_dir=os.path.join(
+    #                 # pyre-fixme[16]: `DataClass` has no attribute
+    #                 #  `output_model_filename`.
+    #                 model_args.output_model_filename,
+    #                 TENSORBOARD_LOG_DIR_NAME,
+    #             ),
+    #             comment="",
+    #             purge_step=None,
+    #             max_queue=10,
+    #             flush_secs=120,
+    #             filename_suffix=str(uuid.uuid4()),
+    #         )
+    #     )
+    # )
 
     trainer = LLaVATrainer(
         model=model,
         tokenizer=tokenizer,
         args=training_args,
-        callbacks=callbacks,
+        # callbacks=callbacks,
         **data_module,
     )
 
